@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"database/sql"
@@ -30,13 +30,13 @@ type securityState struct {
 }
 
 type backupCodeRecord struct {
-	ID         string     `json:"id"`
-	Salt       string     `json:"salt"`
-	Hash       string     `json:"hash"`
-	DBKeyWrap  wrappedKey `json:"db_key_wrap"`
-	UsedAt     *string    `json:"used_at,omitempty"`
-	CreatedAt  string     `json:"created_at"`
-	LastFour   string     `json:"last_four"`
+	ID        string     `json:"id"`
+	Salt      string     `json:"salt"`
+	Hash      string     `json:"hash"`
+	DBKeyWrap wrappedKey `json:"db_key_wrap"`
+	UsedAt    *string    `json:"used_at,omitempty"`
+	CreatedAt string     `json:"created_at"`
+	LastFour  string     `json:"last_four"`
 }
 
 type session struct {
@@ -50,8 +50,8 @@ type session struct {
 }
 
 type rateBucket struct {
-	Count      int
-	ResetAt    time.Time
+	Count       int
+	ResetAt     time.Time
 	LastFailure time.Time
 }
 

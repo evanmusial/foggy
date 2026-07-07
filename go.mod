@@ -1,4 +1,4 @@
-module github.com/evan/cortex
+module github.com/evanmusial/foggy
 
 go 1.25.0
 

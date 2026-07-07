@@ -7,14 +7,14 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/evan/cortex/internal/cortex"
+	"github.com/evanmusial/foggy/internal/foggy"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	app, err := cortex.NewApp(os.DirFS("web/dist"))
+	app, err := foggy.NewApp(os.DirFS("web/dist"))
 	if err != nil {
 		log.Fatalf("create app: %v", err)
 	}

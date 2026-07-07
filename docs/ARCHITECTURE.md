@@ -1,12 +1,12 @@
-# Cortex Architecture
+# Foggy Architecture
 
-Cortex is a private, single-user wellness tracker for people with Multiple Sclerosis. The first draft is intentionally small: one Dockerized Go application serves the React interface, owns the security/session boundary, and stores encrypted health data in a mounted local data directory.
+Foggy is a private, single-user wellness tracker for people with Multiple Sclerosis. The first draft is intentionally small: one Dockerized Go application serves the React interface, owns the security/session boundary, and stores encrypted health data in a mounted local data directory.
 
 The main design goal is portability with strong local control. The application can run on a laptop, a small VM, or a thumb drive-backed directory, as long as Docker can mount the `data/` folder.
 
 ## Flow Diagram
 
-![Cortex architecture flow](architecture-flow.png)
+![Foggy architecture flow](architecture-flow.png)
 
 ## Technology Versions
 
@@ -14,7 +14,7 @@ The diagram above reflects the current implementation in this repository.
 
 | Layer | Technology |
 | --- | --- |
-| Container runtime | Docker Compose service `cortex`, image `cortex:local` |
+| Container runtime | Docker Compose service `foggy`, image `foggy:local` |
 | SSL/TLS edge | Cloudflare in front of the deployment |
 | Optional origin/local HTTPS proxy | Caddy `2.8-alpine` Compose profile `tls` |
 | Runtime base image | `debian:bookworm-slim` |
@@ -23,14 +23,14 @@ The diagram above reflects the current implementation in this repository.
 | Frontend app | React `19.1.0` with TypeScript `5.8.3` |
 | Frontend build/dev server | Vite `6.3.5`; production assets are served by the Go server |
 | SQLite encryption | SQLCipher through `github.com/mutecomm/go-sqlcipher/v4` `4.4.2` |
-| Local database | SQLCipher-encrypted SQLite file at `data/cortex.db` |
+| Local database | SQLCipher-encrypted SQLite file at `data/foggy.db` |
 | Passkeys | `github.com/go-webauthn/webauthn` `0.17.4` |
 | TOTP MFA | `github.com/pquerna/otp` `1.5.0` |
 | Password hashing | Argon2id through `golang.org/x/crypto` `0.52.0` |
 
 ## Request Flow
 
-1. The user opens Cortex in a browser.
+1. The user opens Foggy in a browser.
 2. In a local deployment, the browser talks directly to the Go server on `http://localhost:8080`.
 3. In a VM/server deployment, Cloudflare provides the public SSL/TLS edge in front of the origin.
 4. Caddy remains available as an optional origin/local HTTPS proxy profile.
@@ -42,11 +42,11 @@ The diagram above reflects the current implementation in this repository.
 
 ## Data Boundary
 
-The `data/` directory is the portable state boundary. If a user wants to move Cortex, this is the directory that matters.
+The `data/` directory is the portable state boundary. If a user wants to move Foggy, this is the directory that matters.
 
 Current contents:
 
-- `cortex.db`: SQLCipher-encrypted SQLite database.
+- `foggy.db`: SQLCipher-encrypted SQLite database.
 - `security.json`: key-wrapping metadata, password verifier metadata, recovery-code wrappers, and profile state.
 - `server.key`: present only in convenience passkey mode.
 - `attachments/`: encrypted attachment and audio memo blobs.
@@ -81,7 +81,7 @@ The React frontend is optimized for low-friction logging:
 
 ## Deployment Shape
 
-The default Compose service runs only the `cortex` container:
+The default Compose service runs only the `foggy` container:
 
 - Non-root user `10001`.
 - Read-only root filesystem.

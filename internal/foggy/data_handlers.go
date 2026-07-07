@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"encoding/json"
@@ -38,7 +38,7 @@ func (a *App) checkins(w http.ResponseWriter, r *http.Request) {
 func (a *App) listCheckins(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	rows, err := db.Query(`SELECT id, entry_date, overall_burden, fatigue, energy, pain, mood, anxiety, brain_fog,
@@ -66,7 +66,7 @@ func (a *App) listCheckins(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveCheckin(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	var item dailyCheckIn
@@ -134,7 +134,7 @@ func (a *App) symptoms(w http.ResponseWriter, r *http.Request) {
 func (a *App) listSymptoms(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	rows, err := db.Query(`SELECT id, occurred_at, category, symptom, body_location, severity, duration, newness,
@@ -164,7 +164,7 @@ func (a *App) listSymptoms(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveSymptom(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	var item symptomEvent
@@ -224,7 +224,7 @@ func (a *App) medications(w http.ResponseWriter, r *http.Request) {
 func (a *App) listMedications(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	rows, err := db.Query(`SELECT id, taken_at, name, dose, reason, effectiveness, side_effects, created_at
@@ -249,7 +249,7 @@ func (a *App) listMedications(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveMedication(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	var item medicationEvent
@@ -293,12 +293,12 @@ func (a *App) attachmentsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	dbKey, err := a.currentDBKey()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	if err := r.ParseMultipartForm(25 << 20); err != nil {
@@ -384,7 +384,7 @@ func (a *App) settings(w http.ResponseWriter, r *http.Request) {
 func (a *App) getSettings(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	var s userSettings
@@ -403,7 +403,7 @@ func (a *App) getSettings(w http.ResponseWriter, r *http.Request) {
 func (a *App) saveSettings(w http.ResponseWriter, r *http.Request) {
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	var s userSettings
@@ -448,7 +448,7 @@ func (a *App) clinicianSummary(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex first")
+		writeError(w, http.StatusLocked, "Unlock Foggy first")
 		return
 	}
 	checkins := []dailyCheckIn{}

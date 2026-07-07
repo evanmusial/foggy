@@ -1,16 +1,18 @@
+name: foggy
+
 services:
-  cortex:
+  foggy:
     build: .
-    image: cortex:local
+    image: foggy:local
     restart: unless-stopped
     environment:
-      CORTEX_ADDR: ":8080"
-      CORTEX_DATA_DIR: /data
-      CORTEX_ORIGIN: ${CORTEX_ORIGIN:-http://localhost:8080}
-      CORTEX_RP_ID: ${CORTEX_RP_ID:-localhost}
-      CORTEX_REQUIRE_HTTPS: ${CORTEX_REQUIRE_HTTPS:-true}
+      FOGGY_ADDR: ":8080"
+      FOGGY_DATA_DIR: /data
+      FOGGY_ORIGIN: ${FOGGY_ORIGIN:-http://localhost:8080}
+      FOGGY_RP_ID: ${FOGGY_RP_ID:-localhost}
+      FOGGY_REQUIRE_HTTPS: ${FOGGY_REQUIRE_HTTPS:-true}
     ports:
-      - "${CORTEX_PORT:-8080}:8080"
+      - "${FOGGY_PORT:-8080}:8080"
     volumes:
       - ./data:/data
     read_only: true
@@ -26,10 +28,10 @@ services:
     profiles: ["tls"]
     restart: unless-stopped
     depends_on:
-      - cortex
+      - foggy
     environment:
-      CORTEX_DOMAIN: ${CORTEX_DOMAIN}
-      CORTEX_ADMIN_EMAIL: ${CORTEX_ADMIN_EMAIL}
+      FOGGY_DOMAIN: ${FOGGY_DOMAIN}
+      FOGGY_ADMIN_EMAIL: ${FOGGY_ADMIN_EMAIL}
     ports:
       - "80:80"
       - "443:443"

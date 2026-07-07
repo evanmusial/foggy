@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"context"
@@ -20,16 +20,16 @@ import (
 )
 
 func NewApp(staticFS fs.FS) (*App, error) {
-	dataDir := env("CORTEX_DATA_DIR", "./data")
-	origin := env("CORTEX_ORIGIN", "http://localhost:8080")
-	rpID := env("CORTEX_RP_ID", "localhost")
-	addr := env("CORTEX_ADDR", ":8080")
+	dataDir := env("FOGGY_DATA_DIR", "./data")
+	origin := env("FOGGY_ORIGIN", "http://localhost:8080")
+	rpID := env("FOGGY_RP_ID", "localhost")
+	addr := env("FOGGY_ADDR", ":8080")
 	state, err := loadSecurityState(filepath.Join(dataDir, "security.json"))
 	if err != nil {
 		return nil, err
 	}
 	wa, err := webauthn.New(&webauthn.Config{
-		RPDisplayName: "Cortex",
+		RPDisplayName: "Foggy",
 		RPID:          rpID,
 		RPOrigins:     []string{origin},
 	})
@@ -39,12 +39,12 @@ func NewApp(staticFS fs.FS) (*App, error) {
 	return &App{
 		addr:          addr,
 		dataDir:       dataDir,
-		dbPath:        filepath.Join(dataDir, "cortex.db"),
+		dbPath:        filepath.Join(dataDir, "foggy.db"),
 		attachments:   filepath.Join(dataDir, "attachments"),
 		serverKeyPath: filepath.Join(dataDir, "server.key"),
 		origin:        origin,
 		rpID:          rpID,
-		requireHTTPS:  env("CORTEX_REQUIRE_HTTPS", "true") != "false",
+		requireHTTPS:  env("FOGGY_REQUIRE_HTTPS", "true") != "false",
 		security:      state,
 		sessions:      map[string]*session{},
 		rate:          map[string]*rateBucket{},
@@ -65,7 +65,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("cortex listening on %s", a.addr)
+		log.Printf("foggy listening on %s", a.addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -232,7 +232,7 @@ func (a *App) newSession(w http.ResponseWriter, userID string, stepUp bool) (*se
 	a.sessions[id] = sess
 	a.sessionsMu.Unlock()
 	http.SetCookie(w, &http.Cookie{
-		Name:     "cortex_session",
+		Name:     "foggy_session",
 		Value:    id,
 		Path:     "/",
 		HttpOnly: true,
@@ -241,7 +241,7 @@ func (a *App) newSession(w http.ResponseWriter, userID string, stepUp bool) (*se
 		MaxAge:   int((24 * time.Hour).Seconds()),
 	})
 	http.SetCookie(w, &http.Cookie{
-		Name:     "cortex_csrf",
+		Name:     "foggy_csrf",
 		Value:    csrf,
 		Path:     "/",
 		HttpOnly: false,
@@ -253,17 +253,17 @@ func (a *App) newSession(w http.ResponseWriter, userID string, stepUp bool) (*se
 }
 
 func (a *App) clearSession(w http.ResponseWriter, r *http.Request) {
-	if cookie, err := r.Cookie("cortex_session"); err == nil {
+	if cookie, err := r.Cookie("foggy_session"); err == nil {
 		a.sessionsMu.Lock()
 		delete(a.sessions, cookie.Value)
 		a.sessionsMu.Unlock()
 	}
-	http.SetCookie(w, &http.Cookie{Name: "cortex_session", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode})
-	http.SetCookie(w, &http.Cookie{Name: "cortex_csrf", Path: "/", MaxAge: -1, SameSite: http.SameSiteStrictMode})
+	http.SetCookie(w, &http.Cookie{Name: "foggy_session", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	http.SetCookie(w, &http.Cookie{Name: "foggy_csrf", Path: "/", MaxAge: -1, SameSite: http.SameSiteStrictMode})
 }
 
 func (a *App) sessionFromRequest(r *http.Request) (*session, bool) {
-	cookie, err := r.Cookie("cortex_session")
+	cookie, err := r.Cookie("foggy_session")
 	if err != nil || cookie.Value == "" {
 		return nil, false
 	}

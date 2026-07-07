@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"bytes"
@@ -19,9 +19,9 @@ type webUser struct {
 	credentials []webauthn.Credential
 }
 
-func (u *webUser) WebAuthnID() []byte                       { return u.handle }
-func (u *webUser) WebAuthnName() string                     { return u.name }
-func (u *webUser) WebAuthnDisplayName() string              { return u.name }
+func (u *webUser) WebAuthnID() []byte          { return u.handle }
+func (u *webUser) WebAuthnName() string        { return u.name }
+func (u *webUser) WebAuthnDisplayName() string { return u.name }
 func (u *webUser) WebAuthnCredentials() []webauthn.Credential {
 	return u.credentials
 }
@@ -78,7 +78,7 @@ func (a *App) passkeyRegisterOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := a.loadWebUser()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex with your password first")
+		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
 		return
 	}
 	creation, webSession, err := a.webAuthn.BeginMediatedRegistration(
@@ -113,7 +113,7 @@ func (a *App) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := a.loadWebUser()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex with your password first")
+		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
 		return
 	}
 	a.sessionsMu.Lock()
@@ -136,7 +136,7 @@ func (a *App) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := a.dbConn()
 	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Cortex with your password first")
+		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
 		return
 	}
 	_, err = db.Exec(`INSERT OR REPLACE INTO webauthn_credentials(id, user_id, credential_json, created_at) VALUES(?,?,?,?)`,

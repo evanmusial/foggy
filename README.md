@@ -1,8 +1,8 @@
-# Cortex
+# Foggy
 
 A secure, self-hosted symptom and wellness tracker for people with Multiple Sclerosis.
 
-Cortex is designed for one person, local ownership, and low-friction logging. It runs as a container, stores health data in an encrypted SQLCipher SQLite database, and keeps attachments/audio memos encrypted beside the database in a mounted `data/` directory.
+Foggy is designed for one person, local ownership, and low-friction logging. It runs as a container, stores health data in an encrypted SQLCipher SQLite database, and keeps attachments/audio memos encrypted beside the database in a mounted `data/` directory.
 
 ## What is implemented
 
@@ -27,10 +27,10 @@ Then open `http://localhost:8080`.
 For a LAN/server deployment with passkeys, use HTTPS and set the origin/RP ID:
 
 ```bash
-CORTEX_ORIGIN=https://cortex.example.com \
-CORTEX_RP_ID=cortex.example.com \
-CORTEX_DOMAIN=cortex.example.com \
-CORTEX_ADMIN_EMAIL=you@example.com \
+FOGGY_ORIGIN=https://foggy.example.com \
+FOGGY_RP_ID=foggy.example.com \
+FOGGY_DOMAIN=foggy.example.com \
+FOGGY_ADMIN_EMAIL=you@example.com \
 docker compose --profile tls up --build -d
 ```
 
@@ -38,7 +38,7 @@ docker compose --profile tls up --build -d
 
 The important state lives in `./data` when using the default Compose file:
 
-- `cortex.db`: SQLCipher-encrypted SQLite database.
+- `foggy.db`: SQLCipher-encrypted SQLite database.
 - `security.json`: non-PHI key-wrapping metadata and recovery-code wrappers.
 - `server.key`: only present for the convenience passkey profile.
 - `attachments/`: encrypted uploaded files and audio memos.
@@ -59,13 +59,13 @@ Backend:
 
 ```bash
 go test ./...
-go run ./cmd/cortex
+go run ./cmd/foggy
 ```
 
 This checkout requires Go with CGO enabled because the backend uses the self-contained SQLCipher driver.
 
 ## Security notes
 
-Cortex is built for personal self-hosted PHI protection. It is not a SaaS service and is not a formal HIPAA compliance package. If Cortex is ever hosted for other people, legal/compliance, incident response, BAA, operational monitoring, and breach-notification requirements need a separate design.
+Foggy is built for personal self-hosted PHI protection. It is not a SaaS service and is not a formal HIPAA compliance package. If Foggy is ever hosted for other people, legal/compliance, incident response, BAA, operational monitoring, and breach-notification requirements need a separate design.
 
 Passkeys require HTTPS or localhost-class secure contexts. Raw LAN/IP deployments should use password + TOTP until TLS is configured.

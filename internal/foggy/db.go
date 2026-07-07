@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"database/sql"

@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"bytes"
@@ -81,7 +81,7 @@ func deriveKey(secret string, salt []byte) []byte {
 
 func hashSecret(secret string, salt []byte) []byte {
 	key := deriveKey(secret, salt)
-	sum := sha256.Sum256(append(key, []byte("cortex-auth-verifier")...))
+	sum := sha256.Sum256(append(key, []byte("foggy-auth-verifier")...))
 	return sum[:]
 }
 
@@ -116,7 +116,7 @@ func unwrapWithPassword(wrapped wrappedKey, password string) ([]byte, error) {
 
 func serverWrapKey(serverKey []byte) []byte {
 	mac := hmac.New(sha256.New, serverKey)
-	_, _ = mac.Write([]byte("cortex local convenience database key wrapping"))
+	_, _ = mac.Write([]byte("foggy local convenience database key wrapping"))
 	return mac.Sum(nil)
 }
 

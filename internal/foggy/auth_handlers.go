@@ -1,4 +1,4 @@
-package cortex
+package foggy
 
 import (
 	"encoding/base64"
@@ -18,7 +18,7 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 	already := a.security.Initialized
 	a.securityMu.RUnlock()
 	if already {
-		writeError(w, http.StatusConflict, "Cortex is already set up")
+		writeError(w, http.StatusConflict, "Foggy is already set up")
 		return
 	}
 	var req setupRequest
@@ -28,7 +28,7 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	req.DisplayName = strings.TrimSpace(req.DisplayName)
 	if req.DisplayName == "" {
-		req.DisplayName = "Cortex user"
+		req.DisplayName = "Foggy user"
 	}
 	if len(req.Password) < 12 {
 		writeError(w, http.StatusBadRequest, "Use a password with at least 12 characters")
@@ -106,7 +106,7 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Cortex",
+		Issuer:      "Foggy",
 		AccountName: req.DisplayName,
 	})
 	if err != nil {

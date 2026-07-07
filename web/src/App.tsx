@@ -107,7 +107,7 @@ export function App() {
     }
   };
 
-  if (!status) return <main className="center-shell"><p>Loading Cortex...</p></main>;
+  if (!status) return <main className="center-shell"><p>Loading Foggy...</p></main>;
 
   if (!status.initialized) {
     return <SetupScreen busy={busy} message={message} onRun={run} onDone={refresh} />;
@@ -121,7 +121,7 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">Cortex</p>
+          <p className="eyebrow">Foggy</p>
           <h1>{viewTitle(view)}</h1>
         </div>
         <button className="small-button" onClick={() => run(async () => { await api.logout(); await refresh(); }, 'Locked.')}>Lock</button>
@@ -178,7 +178,7 @@ function SetupScreen({ busy, message, onRun, onDone }: { busy: boolean; message:
     <main className="center-shell">
       <section className="panel setup-panel">
         <p className="eyebrow">Private first</p>
-        <h1>Cortex</h1>
+        <h1>Foggy</h1>
         <p className="lead">A self-hosted MS wellness log for fast, protected daily tracking.</p>
         {!setupResult ? (
           <form onSubmit={(e) => {
@@ -204,7 +204,7 @@ function SetupScreen({ busy, message, onRun, onDone }: { busy: boolean; message:
             <code>{setupResult.totpSecret}</code>
             <p className="muted">Backup codes. They are shown once and each works once.</p>
             <div className="code-grid">{setupResult.backupCodes.map((code) => <code key={code}>{code}</code>)}</div>
-            <button className="primary" onClick={() => onDone()}>Enter Cortex</button>
+            <button className="primary" onClick={() => onDone()}>Enter Foggy</button>
           </div>
         )}
         {message && <p className="error">{message}</p>}
@@ -223,7 +223,7 @@ function LoginScreen({ busy, status, message, onRun, onDone }: { busy: boolean; 
     <main className="center-shell">
       <section className="panel login-panel">
         <p className="eyebrow">Welcome back</p>
-        <h1>Cortex</h1>
+        <h1>Foggy</h1>
         {!recovery ? (
           <form onSubmit={(e) => {
             e.preventDefault();
@@ -425,7 +425,7 @@ function VoiceScreen({ run }: { run: (w: () => Promise<void>, s?: string) => voi
       <button className={recording ? 'danger' : 'secondary'} onClick={() => recording ? stopAndSave() : run(start)}>
         {recording ? 'Stop and save audio' : 'Record audio memo'}
       </button>
-      <p className="muted">Browser dictation may depend on your device. Audio memos are stored locally in encrypted Cortex storage.</p>
+      <p className="muted">Browser dictation may depend on your device. Audio memos are stored locally in encrypted Foggy storage.</p>
     </section>
   );
 }

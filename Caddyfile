@@ -1,8 +1,8 @@
 {
-	email {$CORTEX_ADMIN_EMAIL}
+	email {$FOGGY_ADMIN_EMAIL}
 }
 
-{$CORTEX_DOMAIN} {
+{$FOGGY_DOMAIN} {
 	encode zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -10,5 +10,5 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
 	}
-	reverse_proxy cortex:8080
+	reverse_proxy foggy:8080
 }
