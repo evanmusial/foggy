@@ -1,0 +1,47 @@
+services:
+  cortex:
+    build: .
+    image: cortex:local
+    restart: unless-stopped
+    environment:
+      CORTEX_ADDR: ":8080"
+      CORTEX_DATA_DIR: /data
+      CORTEX_ORIGIN: ${CORTEX_ORIGIN:-http://localhost:8080}
+      CORTEX_RP_ID: ${CORTEX_RP_ID:-localhost}
+      CORTEX_REQUIRE_HTTPS: ${CORTEX_REQUIRE_HTTPS:-true}
+    ports:
+      - "${CORTEX_PORT:-8080}:8080"
+    volumes:
+      - ./data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  caddy:
+    image: caddy:2.8-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    depends_on:
+      - cortex
+    environment:
+      CORTEX_DOMAIN: ${CORTEX_DOMAIN}
+      CORTEX_ADMIN_EMAIL: ${CORTEX_ADMIN_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  caddy-data:
+  caddy-config:
