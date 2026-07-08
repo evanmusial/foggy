@@ -1,4 +1,5 @@
 data/
+.env
 tmp/
 web/node_modules/
 web/dist/

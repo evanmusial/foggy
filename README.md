@@ -47,6 +47,15 @@ Backups are intentionally left for a later phase, but copy/backup strategy shoul
 
 ## Development
 
+For local UI iteration, Foggy can skip the login screen on localhost after setup. This is development-only and should not be enabled on a server:
+
+```bash
+FOGGY_DEV_AUTO_AUTH=true
+FOGGY_DEV_AUTO_PASSWORD="your local development password"
+```
+
+Put those values in a local `.env` file when using Docker Compose. The app only honors development auto-auth when both `FOGGY_DEV_AUTO_AUTH=true` and the configured origin/request host are localhost-class addresses. Maximum-privacy databases still need `FOGGY_DEV_AUTO_PASSWORD` so the backend can unwrap the SQLCipher key after restart; convenience-passkey development data can use the local `server.key`.
+
 Frontend:
 
 ```bash

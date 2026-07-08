@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,6 +46,8 @@ func NewApp(staticFS fs.FS) (*App, error) {
 		origin:        origin,
 		rpID:          rpID,
 		requireHTTPS:  env("FOGGY_REQUIRE_HTTPS", "true") != "false",
+		devAutoAuth:  envBool("FOGGY_DEV_AUTO_AUTH"),
+		devPassword:  os.Getenv("FOGGY_DEV_AUTO_PASSWORD"),
 		security:      state,
 		sessions:      map[string]*session{},
 		rate:          map[string]*rateBucket{},
@@ -109,6 +112,15 @@ func env(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func envBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *App) securityHeaders(next http.Handler) http.Handler {
@@ -181,12 +193,23 @@ func isLocalHost(hostport string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+func isLocalOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return isLocalHost(u.Host)
+}
+
 func (a *App) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (a *App) status(w http.ResponseWriter, r *http.Request) {
 	sess, authenticated := a.sessionFromRequest(r)
+	if !authenticated {
+		sess, authenticated = a.devAutoSession(w, r)
+	}
 	csrf := ""
 	if authenticated {
 		csrf = sess.CSRF
@@ -206,6 +229,45 @@ func (a *App) status(w http.ResponseWriter, r *http.Request) {
 		RequireHTTPS:        a.requireHTTPS,
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (a *App) devAutoSession(w http.ResponseWriter, r *http.Request) (*session, bool) {
+	if !a.devAutoAuth || !isLocalHost(r.Host) || !isLocalOrigin(a.origin) {
+		return nil, false
+	}
+	a.securityMu.RLock()
+	state := a.security
+	a.securityMu.RUnlock()
+	if !state.Initialized || state.UserID == "" {
+		return nil, false
+	}
+	if !a.isUnlocked() {
+		if err := a.unlockForDevelopment(state); err != nil {
+			log.Printf("development auto-auth skipped: %v", err)
+			return nil, false
+		}
+	}
+	sess, err := a.newSession(w, state.UserID, true)
+	if err != nil {
+		log.Printf("development auto-auth session failed: %v", err)
+		return nil, false
+	}
+	a.audit("development_auto_login", map[string]any{"localhost": true})
+	return sess, true
+}
+
+func (a *App) unlockForDevelopment(state securityState) error {
+	if a.devPassword != "" && state.PasswordAuthEnabled && verifyPasswordState(state, a.devPassword) {
+		dbKey, err := unwrapWithPassword(state.DBKeyWrapped, a.devPassword)
+		if err != nil {
+			return err
+		}
+		return a.openEncryptedDB(dbKey)
+	}
+	if state.EncryptionProfile == profileConvenience && state.ServerKeyWrapped != nil {
+		return a.unlockForConvenience()
+	}
+	return fmt.Errorf("set FOGGY_DEV_AUTO_PASSWORD for maximum-privacy development data")
 }
 
 func (a *App) isUnlocked() bool {

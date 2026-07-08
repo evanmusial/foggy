@@ -11,6 +11,8 @@ services:
       FOGGY_ORIGIN: ${FOGGY_ORIGIN:-http://localhost:8080}
       FOGGY_RP_ID: ${FOGGY_RP_ID:-localhost}
       FOGGY_REQUIRE_HTTPS: ${FOGGY_REQUIRE_HTTPS:-true}
+      FOGGY_DEV_AUTO_AUTH: ${FOGGY_DEV_AUTO_AUTH:-false}
+      FOGGY_DEV_AUTO_PASSWORD: ${FOGGY_DEV_AUTO_PASSWORD:-}
     ports:
       - "${FOGGY_PORT:-8080}:8080"
     volumes:

@@ -74,6 +74,8 @@ type App struct {
 	origin        string
 	rpID          string
 	requireHTTPS  bool
+	devAutoAuth  bool
+	devPassword  string
 
 	securityMu sync.RWMutex
 	security   securityState
