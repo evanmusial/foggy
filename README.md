@@ -39,7 +39,7 @@ docker compose --profile tls up --build -d
 The important state lives in `./data` when using the default Compose file:
 
 - `foggy.db`: SQLCipher-encrypted SQLite database.
-- `security.json`: non-PHI key-wrapping metadata and recovery-code wrappers.
+- `security.json`: non-PHI auth/key metadata, including password verifier metadata, TOTP seed, passkey public credentials, recovery-code wrappers, and encryption profile state.
 - `server.key`: only present for the convenience passkey profile.
 - `attachments/`: encrypted uploaded files and audio memos.
 

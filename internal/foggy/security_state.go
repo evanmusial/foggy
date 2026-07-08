@@ -32,6 +32,12 @@ func loadSecurityState(path string) (securityState, error) {
 	if state.EncryptionProfile == "" {
 		state.EncryptionProfile = profileMaximumPrivacy
 	}
+	if state.BackupCodes == nil {
+		state.BackupCodes = []backupCodeRecord{}
+	}
+	if state.Passkeys == nil {
+		state.Passkeys = []passkeyCredential{}
+	}
 	return state, nil
 }
 

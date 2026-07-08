@@ -27,10 +27,6 @@ func (u *webUser) WebAuthnCredentials() []webauthn.Credential {
 }
 
 func (a *App) loadWebUser() (*webUser, error) {
-	db, err := a.dbConn()
-	if err != nil {
-		return nil, err
-	}
 	a.securityMu.RLock()
 	state := a.security
 	a.securityMu.RUnlock()
@@ -38,38 +34,32 @@ func (a *App) loadWebUser() (*webUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT credential_json FROM webauthn_credentials WHERE user_id = ?`, state.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	creds := []webauthn.Credential{}
-	for rows.Next() {
-		var b []byte
-		if err := rows.Scan(&b); err != nil {
-			return nil, err
+	for _, rec := range state.Passkeys {
+		if rec.UserID != state.UserID {
+			continue
 		}
 		var cred webauthn.Credential
-		if err := json.Unmarshal(b, &cred); err != nil {
+		if err := json.Unmarshal([]byte(rec.CredentialJSON), &cred); err != nil {
 			return nil, err
 		}
 		creds = append(creds, cred)
 	}
-	return &webUser{id: state.UserID, handle: handle, name: state.DisplayName, credentials: creds}, rows.Err()
+	return &webUser{id: state.UserID, handle: handle, name: state.DisplayName, credentials: creds}, nil
 }
 
 func (a *App) passkeyCount() int {
-	db, err := a.dbConn()
-	if err != nil {
-		return 0
-	}
-	var count int
-	_ = db.QueryRow(`SELECT count(*) FROM webauthn_credentials`).Scan(&count)
-	return count
+	a.securityMu.RLock()
+	defer a.securityMu.RUnlock()
+	return len(a.security.Passkeys)
 }
 
 func (a *App) passkeyRegisterOptions(w http.ResponseWriter, r *http.Request) {
 	if !method(w, r, http.MethodPost) {
+		return
+	}
+	if !a.isUnlocked() {
+		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
 		return
 	}
 	sess, ok := a.requireAuth(w, r)
@@ -107,6 +97,10 @@ func (a *App) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 	if !method(w, r, http.MethodPost) {
 		return
 	}
+	if !a.isUnlocked() {
+		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
+		return
+	}
 	sess, ok := a.requireAuth(w, r)
 	if !ok {
 		return
@@ -134,30 +128,39 @@ func (a *App) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Could not save passkey")
 		return
 	}
-	db, err := a.dbConn()
-	if err != nil {
-		writeError(w, http.StatusLocked, "Unlock Foggy with your password first")
-		return
+	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
+	now := time.Now().UTC().Format(time.RFC3339)
+	a.securityMu.Lock()
+	replaced := false
+	for i := range a.security.Passkeys {
+		if a.security.Passkeys[i].ID == credentialID && a.security.Passkeys[i].UserID == user.id {
+			a.security.Passkeys[i].CredentialJSON = string(b)
+			a.security.Passkeys[i].CreatedAt = now
+			replaced = true
+			break
+		}
 	}
-	_, err = db.Exec(`INSERT OR REPLACE INTO webauthn_credentials(id, user_id, credential_json, created_at) VALUES(?,?,?,?)`,
-		base64.RawURLEncoding.EncodeToString(credential.ID), user.id, b, time.Now().UTC().Format(time.RFC3339))
-	if err != nil {
+	if !replaced {
+		a.security.Passkeys = append(a.security.Passkeys, passkeyCredential{
+			ID:             credentialID,
+			UserID:         user.id,
+			CredentialJSON: string(b),
+			CreatedAt:      now,
+		})
+	}
+	state := a.security
+	a.securityMu.Unlock()
+	if err := saveSecurityState(a.securityPath(), state); err != nil {
 		writeError(w, http.StatusInternalServerError, "Could not save passkey")
 		return
 	}
-	a.audit("passkey_enrolled", map[string]any{"credential": base64.RawURLEncoding.EncodeToString(credential.ID)})
+	a.audit("passkey_enrolled", map[string]any{"credential": credentialID})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (a *App) passkeyLoginOptions(w http.ResponseWriter, r *http.Request) {
 	if !method(w, r, http.MethodPost) {
 		return
-	}
-	if !a.isUnlocked() {
-		if err := a.unlockForConvenience(); err != nil {
-			writeError(w, http.StatusLocked, requireUnlockedError().Error())
-			return
-		}
 	}
 	assertion, webSession, err := a.webAuthn.BeginDiscoverableMediatedLogin(
 		protocol.MediationDefault,
@@ -182,12 +185,6 @@ func (a *App) passkeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 	if !method(w, r, http.MethodPost) {
 		return
 	}
-	if !a.isUnlocked() {
-		if err := a.unlockForConvenience(); err != nil {
-			writeError(w, http.StatusLocked, requireUnlockedError().Error())
-			return
-		}
-	}
 	sess, ok := a.sessionFromRequest(r)
 	if !ok || sess.WebAuthnSession == nil {
 		writeError(w, http.StatusBadRequest, "Passkey login was not started")
@@ -211,6 +208,12 @@ func (a *App) passkeyLoginFinish(w http.ResponseWriter, r *http.Request) {
 	if err := a.updateCredential(webUser, credential); err != nil {
 		writeError(w, http.StatusInternalServerError, "Could not update passkey")
 		return
+	}
+	if !a.isUnlocked() {
+		if err := a.unlockForConvenience(); err != nil {
+			writeError(w, http.StatusLocked, requireUnlockedError().Error())
+			return
+		}
 	}
 	newSess, err := a.newSession(w, webUser.id, false)
 	if err != nil {
@@ -238,15 +241,21 @@ func (a *App) discoverableUser(rawID []byte, userHandle []byte) (webauthn.User, 
 }
 
 func (a *App) updateCredential(user *webUser, credential *webauthn.Credential) error {
-	db, err := a.dbConn()
-	if err != nil {
-		return err
-	}
 	b, err := json.Marshal(credential)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`UPDATE webauthn_credentials SET credential_json = ?, last_used_at = ? WHERE id = ? AND user_id = ?`,
-		b, time.Now().UTC().Format(time.RFC3339), base64.RawURLEncoding.EncodeToString(credential.ID), user.id)
-	return err
+	credentialID := base64.RawURLEncoding.EncodeToString(credential.ID)
+	a.securityMu.Lock()
+	for i := range a.security.Passkeys {
+		if a.security.Passkeys[i].ID == credentialID && a.security.Passkeys[i].UserID == user.id {
+			a.security.Passkeys[i].CredentialJSON = string(b)
+			a.security.Passkeys[i].LastUsedAt = time.Now().UTC().Format(time.RFC3339)
+			state := a.security
+			a.securityMu.Unlock()
+			return saveSecurityState(a.securityPath(), state)
+		}
+	}
+	a.securityMu.Unlock()
+	return fmt.Errorf("unknown credential")
 }

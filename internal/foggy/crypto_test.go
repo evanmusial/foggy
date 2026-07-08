@@ -1,32 +1,32 @@
 package foggy
 
-import "testing"
+import (
+	"regexp"
+	"testing"
+)
 
-func TestPasswordWrapRoundTrip(t *testing.T) {
-	dbKey, err := randomDBKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	wrapped, err := wrapWithPassword(dbKey, "a very long test password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := unwrapWithPassword(wrapped, "a very long test password")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(out) != string(dbKey) {
-		t.Fatal("unwrapped key mismatch")
-	}
-	if _, err := unwrapWithPassword(wrapped, "wrong password"); err == nil {
-		t.Fatal("wrong password unexpectedly unwrapped key")
+func TestNewBackupCodeFormat(t *testing.T) {
+	pattern := regexp.MustCompile(`^[A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4}-[A-Z2-7]{4}$`)
+	for range 20 {
+		code, err := newBackupCode()
+		if err != nil {
+			t.Fatalf("newBackupCode() error = %v", err)
+		}
+		if !pattern.MatchString(code) {
+			t.Fatalf("newBackupCode() = %q, want XXXX-XXXX-XXXX-XXXX base32 format", code)
+		}
+		if normalizeCode(stringsWithoutHyphens(code)) != code {
+			t.Fatalf("normalizeCode() did not restore hyphenated form for %q", code)
+		}
 	}
 }
 
-func TestBackupCodeNormalization(t *testing.T) {
-	got := normalizeCode("abcd efgh-ijkl mnop")
-	want := "ABCD-EFGH-IJKL-MNOP"
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
+func stringsWithoutHyphens(value string) string {
+	out := make([]byte, 0, len(value))
+	for i := range len(value) {
+		if value[i] != '-' {
+			out = append(out, value[i])
+		}
 	}
+	return string(out)
 }

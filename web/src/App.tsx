@@ -1,9 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Activity,
+  ArrowLeft,
+  Brain,
+  ChartNoAxesCombined,
+  ClipboardList,
+  ClipboardPenLine,
+  Frown,
+  Lock,
+  Meh,
+  Mic,
+  Milestone,
+  Smile,
+  Thermometer
+} from 'lucide-react';
 import { api } from './api';
 import { createPasskey, getPasskey } from './passkeys';
 import type { DailyCheckIn, MedicationEvent, Settings, Status, SymptomEvent } from './types';
 
-type View = 'home' | 'checkin' | 'symptom' | 'voice' | 'clinician' | 'settings';
+type View = 'home' | 'checkin' | 'symptom' | 'voice' | 'clinician' | 'settings' | 'symptoms';
+
+const primaryViews: View[] = ['home', 'symptom', 'clinician', 'symptoms'];
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nowLocal = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -13,8 +30,8 @@ const toLocalInput = (iso: string) => {
 };
 
 const defaultSettings: Settings = {
-  theme: 'system',
-  accentColor: '#f97316',
+  theme: 'light',
+  accentColor: '#2254ab',
   fontScale: 'comfortable',
   highContrast: false,
   reducedMotion: false
@@ -117,56 +134,141 @@ export function App() {
     return <LoginScreen busy={busy} status={status} message={message} onRun={run} onDone={refresh} />;
   }
 
+  const lock = () => run(async () => { await api.logout(); await refresh(); }, 'Locked.');
+  const isHomeView = view === 'home';
+
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div>
+    <div className="app-frame">
+      <aside className="side-nav" aria-label="Primary">
+        <div className="side-brand">
           <p className="eyebrow">Foggy</p>
-          <h1>{viewTitle(view)}</h1>
+          <strong>Wellness log</strong>
         </div>
-        <button className="small-button" onClick={() => run(async () => { await api.logout(); await refresh(); }, 'Locked.')}>Lock</button>
-      </header>
-      {message && <div className="notice" role="status">{message}</div>}
-      <main>
-        {view === 'home' && <HomeScreen setView={setView} />}
-        {view === 'checkin' && <CheckInScreen run={run} />}
-        {view === 'symptom' && <SymptomScreen run={run} />}
-        {view === 'voice' && <VoiceScreen run={run} />}
-        {view === 'clinician' && <ClinicianScreen run={run} />}
-        {view === 'settings' && <SettingsScreen status={status} settings={settings} setSettings={setSettings} run={run} refresh={refresh} />}
-      </main>
-      <nav className="bottom-nav" aria-label="Primary">
-        {(['home', 'checkin', 'symptom', 'voice', 'clinician', 'settings'] as View[]).map((item) => (
-          <button key={item} className={view === item ? 'active' : ''} onClick={() => setView(item)}>
-            {navLabel(item)}
-          </button>
-        ))}
-      </nav>
-      {busy && <div className="busy" aria-live="polite">Working...</div>}
+        <nav className="side-nav-list">
+          {primaryViews.map((item) => (
+            <button key={item} className={view === item ? 'active' : ''} onClick={() => setView(item)}>
+              {viewIcon(item)}
+              <span>{navDesktopLabel(item)}</span>
+            </button>
+          ))}
+        </nav>
+        <button className="small-button side-lock" onClick={lock}><Lock size={18} aria-hidden="true" /> <span>Lock</span></button>
+      </aside>
+      <div className="app-shell">
+        <header className={isHomeView ? 'topbar topbar-home' : 'topbar'}>
+          {isHomeView ? (
+            <div className="hud-slot">
+              {message && <div className="hud-message" role="status">{message}</div>}
+            </div>
+          ) : (
+            <div>
+              <p className="eyebrow">Foggy</p>
+              <h1>{viewTitle(view)}</h1>
+            </div>
+          )}
+          <button className="small-button mobile-lock" onClick={lock}><Lock size={18} aria-hidden="true" /> <span>Lock</span></button>
+        </header>
+        {message && !isHomeView && <div className="notice" role="status">{message}</div>}
+        <main className={`view-stage view-${view}`}>
+          {view === 'home' && <HomeScreen setView={setView} run={run} />}
+          {view === 'checkin' && <CheckInScreen run={run} />}
+          {view === 'symptom' && <SymptomScreen run={run} />}
+          {view === 'voice' && <VoiceScreen run={run} />}
+          {view === 'clinician' && <ClinicianScreen run={run} />}
+          {view === 'symptoms' && <SymptomsScreen setView={setView} />}
+          {view === 'settings' && <SettingsScreen status={status} settings={settings} setSettings={setSettings} run={run} refresh={refresh} />}
+        </main>
+        <nav className="bottom-nav" aria-label="Primary">
+          {primaryViews.map((item) => (
+            <button key={item} className={view === item ? 'active' : ''} onClick={() => setView(item)}>
+              {viewIcon(item, 20)}
+              <span>{navLabel(item)}</span>
+            </button>
+          ))}
+        </nav>
+        {busy && <div className="busy" aria-live="polite">Working...</div>}
+      </div>
     </div>
   );
 }
 
 function viewTitle(view: View) {
   return {
-    home: 'Today',
+    home: friendlyDateLabel(),
     checkin: 'Daily check-in',
-    symptom: 'Log symptom',
+    symptom: 'Planning',
     voice: 'Voice note',
-    clinician: 'Summary',
-    settings: 'Settings'
+    clinician: 'Trends',
+    settings: 'Settings',
+    symptoms: 'Symptoms'
   }[view];
 }
 
 function navLabel(view: View) {
   return {
-    home: 'Today',
+    home: 'Log',
     checkin: 'Check',
-    symptom: 'Log',
+    symptom: 'Planning',
     voice: 'Voice',
-    clinician: 'Share',
-    settings: 'Tune'
+    clinician: 'Trends',
+    settings: 'Tune',
+    symptoms: 'Symptoms'
   }[view];
+}
+
+function navDesktopLabel(view: View) {
+  return {
+    home: 'Log',
+    checkin: 'Daily check-in',
+    symptom: 'Planning',
+    voice: 'Voice note',
+    clinician: 'Trends',
+    settings: 'Settings',
+    symptoms: 'Symptoms'
+  }[view];
+}
+
+function viewIcon(view: View, size = 18) {
+  const Icon = {
+    home: ClipboardPenLine,
+    checkin: ClipboardList,
+    symptom: Milestone,
+    voice: Mic,
+    clinician: ChartNoAxesCombined,
+    settings: Activity,
+    symptoms: Brain
+  }[view];
+  return <Icon size={size} strokeWidth={2.15} aria-hidden="true" />;
+}
+
+function ordinalSuffix(day: number) {
+  const remainder = day % 100;
+  if (remainder >= 11 && remainder <= 13) return 'th';
+  switch (day % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
+
+function friendlyDateLabel() {
+  const date = new Date();
+  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(date);
+  const day = date.getDate();
+  return `${weekday} the ${day}${ordinalSuffix(day)}`;
+}
+
+function timeOfDayPhrase() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'this morning';
+  if (hour < 17) return 'this afternoon';
+  if (hour < 21) return 'this evening';
+  return 'tonight';
 }
 
 function SetupScreen({ busy, message, onRun, onDone }: { busy: boolean; message: string; onRun: (w: () => Promise<void>, s?: string) => void; onDone: () => Promise<void> }) {
@@ -184,7 +286,7 @@ function SetupScreen({ busy, message, onRun, onDone }: { busy: boolean; message:
           <form onSubmit={(e) => {
             e.preventDefault();
             onRun(async () => {
-              const result = await api.setup({ displayName, password, encryptionProfile: profile, accentColor: '#f97316', theme: 'system' });
+              const result = await api.setup({ displayName, password, encryptionProfile: profile, accentColor: '#2254ab', theme: 'light' });
               setSetupResult(result);
             });
           }}>
@@ -259,21 +361,212 @@ function LoginScreen({ busy, status, message, onRun, onDone }: { busy: boolean; 
   );
 }
 
-function HomeScreen({ setView }: { setView: (v: View) => void }) {
+type HomePromptID = 'pretty-good' | 'okay' | 'rough' | 'sick' | 'tell-me';
+
+type HomePrompt = {
+  id: HomePromptID;
+  label: string;
+  icon: typeof Smile;
+  primary?: boolean;
+  mode: 'text' | 'voice';
+  question: string;
+  fields: Array<{ id: string; label: string }>;
+  category: string;
+  severity: number;
+  relapseFlag: string;
+};
+
+const homePrompts: HomePrompt[] = [
+  {
+    id: 'pretty-good',
+    label: 'Good',
+    icon: Smile,
+    primary: true,
+    mode: 'text',
+    question: 'What went well?',
+    fields: [{ id: 'wentWell', label: 'What went well?' }],
+    category: 'wellness',
+    severity: 0,
+    relapseFlag: 'baseline'
+  },
+  {
+    id: 'okay',
+    label: 'Okay',
+    icon: Meh,
+    mode: 'text',
+    question: "What's okay, and what's not good?",
+    fields: [
+      { id: 'okay', label: "What's okay?" },
+      { id: 'notGood', label: "What's not good?" }
+    ],
+    category: 'daily status',
+    severity: 3,
+    relapseFlag: 'baseline'
+  },
+  {
+    id: 'rough',
+    label: 'Rough',
+    icon: Frown,
+    mode: 'text',
+    question: "What's wrong?",
+    fields: [
+      { id: 'wrong', label: "What's wrong?" },
+      { id: 'goingWell', label: 'Is anything going well?' }
+    ],
+    category: 'symptom',
+    severity: 7,
+    relapseFlag: 'uncertain'
+  },
+  {
+    id: 'sick',
+    label: 'Sick',
+    icon: Thermometer,
+    mode: 'text',
+    question: 'What kind of sick?',
+    fields: [
+      { id: 'symptoms', label: 'What symptoms are you having?' },
+      { id: 'diagnosis', label: 'Does it seem like flu, respiratory illness, UTI, or something else?' }
+    ],
+    category: 'acute illness',
+    severity: 6,
+    relapseFlag: 'pseudo-flare'
+  },
+  {
+    id: 'tell-me',
+    label: "I'll Tell You",
+    icon: Mic,
+    mode: 'voice',
+    question: 'Tell me what is happening.',
+    fields: [],
+    category: 'voice note',
+    severity: 5,
+    relapseFlag: 'uncertain'
+  }
+];
+
+function HomeScreen({ setView, run }: { setView: (v: View) => void; run: (w: () => Promise<void>, s?: string) => void }) {
+  const [activePromptID, setActivePromptID] = useState<HomePromptID | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const activePrompt = homePrompts.find((prompt) => prompt.id === activePromptID) || null;
+  const textPrompts = homePrompts.filter((prompt) => prompt.mode === 'text');
+  const voicePrompt = homePrompts.find((prompt) => prompt.mode === 'voice');
+
+  const resetPrompt = () => {
+    setActivePromptID(null);
+    setDraft({});
+  };
+
+  const savePrompt = (prompt: HomePrompt) => {
+    const entries = prompt.fields
+      .map((field) => ({ label: field.label, value: (draft[field.id] || '').trim() }))
+      .filter((entry) => entry.value);
+    run(async () => {
+      if (!entries.length) {
+        throw new Error('Add a few words first.');
+      }
+      const notes = entries.map((entry) => `${entry.label} ${entry.value}`).join('\n');
+      await api.saveSymptom({
+        ...blankSymptom(),
+        category: prompt.category,
+        symptom: entries[0].value,
+        severity: prompt.severity,
+        relapseFlag: prompt.relapseFlag,
+        notes
+      });
+      resetPrompt();
+    }, 'Logged.');
+  };
+
+  if (activePrompt) {
+    const ActiveIcon = activePrompt.icon;
+    if (activePrompt.mode === 'voice') {
+      return (
+        <section className="home-screen home-prompt" aria-labelledby="home-prompt-question">
+          <button className="link-button prompt-back" onClick={resetPrompt}><ArrowLeft size={18} aria-hidden="true" /> <span>Back</span></button>
+          <div className="prompt-heading">
+            <ActiveIcon size={34} strokeWidth={2.05} aria-hidden="true" />
+            <h2 id="home-prompt-question">{activePrompt.question}</h2>
+          </div>
+          <button className="feeling-button primary-response voice-prompt-button" onClick={() => setView('voice')}>
+            <span className="feeling-icon"><Mic size={30} strokeWidth={2.1} aria-hidden="true" /></span>
+            <span className="feeling-label"><strong>Record audio memo</strong></span>
+          </button>
+        </section>
+      );
+    }
+
+    return (
+      <section className="home-screen home-prompt" aria-labelledby="home-prompt-question">
+        <button className="link-button prompt-back" onClick={resetPrompt}><ArrowLeft size={18} aria-hidden="true" /> <span>Back</span></button>
+        <div className="prompt-heading">
+          <ActiveIcon size={34} strokeWidth={2.05} aria-hidden="true" />
+          <h2 id="home-prompt-question">{activePrompt.question}</h2>
+        </div>
+        <div className="prompt-fields">
+          {activePrompt.fields.map((field) => (
+            <DictationArea
+              key={field.id}
+              label={field.label}
+              value={draft[field.id] || ''}
+              onChange={(value) => setDraft((previous) => ({ ...previous, [field.id]: value }))}
+            />
+          ))}
+        </div>
+        <button className="primary form-submit prompt-save" onClick={() => savePrompt(activePrompt)}>
+          <ClipboardPenLine size={20} aria-hidden="true" />
+          <span>Save to log</span>
+        </button>
+      </section>
+    );
+  }
+
   return (
-    <section className="home-grid">
-      <button className="action-tile largest" onClick={() => setView('symptom')}>
-        <span>Log now</span><small>Symptom, trigger, impact</small>
-      </button>
-      <button className="action-tile" onClick={() => setView('checkin')}>
-        <span>Daily check-in</span><small>Fast whole-day snapshot</small>
-      </button>
-      <button className="action-tile" onClick={() => setView('voice')}>
-        <span>Voice note</span><small>Dictate or save audio</small>
-      </button>
-      <button className="action-tile quiet" onClick={() => setView('clinician')}>
-        <span>Visit summary</span><small>Trends and recent events</small>
-      </button>
+    <section className="home-screen home-screen-landing" aria-labelledby="feeling-question">
+      <div className="feeling-splash">
+        <h2 id="feeling-question">How are you feeling {timeOfDayPhrase()}?</h2>
+        <div className="feeling-grid">
+          {textPrompts.map((response) => {
+            const ResponseIcon = response.icon;
+            return (
+              <button
+                key={response.id}
+                className={response.primary ? 'feeling-button primary-response' : 'feeling-button'}
+                onClick={() => setActivePromptID(response.id)}
+              >
+                <span className="feeling-icon"><ResponseIcon size={28} strokeWidth={2.1} aria-hidden="true" /></span>
+                <span className="feeling-label"><strong>{response.label}</strong></span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {voicePrompt && (
+        <div className="feeling-footer">
+          <button
+            className="feeling-button voice-home-button"
+            onClick={() => setActivePromptID(voicePrompt.id)}
+          >
+            <span className="feeling-icon"><Mic size={28} strokeWidth={2.1} aria-hidden="true" /></span>
+            <span className="feeling-label"><strong>{voicePrompt.label}</strong></span>
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SymptomsScreen({ setView }: { setView: (v: View) => void }) {
+  const groups = ['Fatigue', 'Pain', 'Mobility', 'Vision', 'Brain fog', 'Mood', 'Heat', 'Bladder / bowel'];
+  return (
+    <section className="symptoms-overview" aria-label="Symptom groups">
+      <div className="symptom-button-grid">
+        {groups.map((group) => (
+          <button key={group} className="symptom-group-button" onClick={() => setView('symptom')}>
+            <Activity size={24} strokeWidth={2.05} aria-hidden="true" />
+            <span>{group}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -292,7 +585,7 @@ function CheckInScreen({ run }: { run: (w: () => Promise<void>, s?: string) => v
   const [item, setItem] = useState(blankCheckin);
   const set = (key: keyof DailyCheckIn, value: string | number) => setItem((prev) => ({ ...prev, [key]: value }));
   return (
-    <form className="flow" onSubmit={(e) => {
+    <form className="flow checkin-form" onSubmit={(e) => {
       e.preventDefault();
       run(async () => { await api.saveCheckin(item); setItem(blankCheckin()); }, 'Daily check-in saved.');
     }}>
@@ -310,8 +603,8 @@ function CheckInScreen({ run }: { run: (w: () => Promise<void>, s?: string) => v
         <Score label="Mobility" value={item.mobility} onChange={(v) => set('mobility', v)} />
         <Score label="Bladder/bowel" value={item.bladderBowel} onChange={(v) => set('bladderBowel', v)} />
       </div>
-      <DictationArea label="Notes" value={item.notes} onChange={(v) => set('notes', v)} />
-      <button className="primary">Save check-in</button>
+      <DictationArea className="wide-field" label="Notes" value={item.notes} onChange={(v) => set('notes', v)} />
+      <button className="primary form-submit">Save check-in</button>
     </form>
   );
 }
@@ -321,7 +614,7 @@ function SymptomScreen({ run }: { run: (w: () => Promise<void>, s?: string) => v
   const [triggerText, setTriggerText] = useState('');
   const set = (key: keyof SymptomEvent, value: string | number | string[]) => setItem((prev) => ({ ...prev, [key]: value }));
   return (
-    <form className="flow" onSubmit={(e) => {
+    <form className="flow symptom-form" onSubmit={(e) => {
       e.preventDefault();
       run(async () => {
         await api.saveSymptom({ ...item, occurredAt: new Date(item.occurredAt).toISOString(), triggers: triggerText.split(',').map((t) => t.trim()).filter(Boolean) });
@@ -333,7 +626,7 @@ function SymptomScreen({ run }: { run: (w: () => Promise<void>, s?: string) => v
       <label>Category<select value={item.category} onChange={(e) => set('category', e.target.value)}>
         {['fatigue', 'pain', 'vision', 'mobility', 'cognition', 'mood', 'bladder/bowel', 'spasticity', 'tremor', 'numbness', 'weakness', 'sleep', 'temperature'].map((x) => <option key={x}>{x}</option>)}
       </select></label>
-      <DictationArea label="What happened?" value={item.symptom} onChange={(v) => set('symptom', v)} />
+      <DictationArea className="wide-field" label="What happened?" value={item.symptom} onChange={(v) => set('symptom', v)} />
       <label>Body location or side<input value={item.bodyLocation} onChange={(e) => set('bodyLocation', e.target.value)} /></label>
       <Score label="Severity" value={item.severity} onChange={(v) => set('severity', v)} />
       <label>Duration<input value={item.duration} onChange={(e) => set('duration', e.target.value)} placeholder="minutes, hours, all day, ongoing" /></label>
@@ -349,13 +642,13 @@ function SymptomScreen({ run }: { run: (w: () => Promise<void>, s?: string) => v
       <label>Relapse self-triage<select value={item.relapseFlag} onChange={(e) => set('relapseFlag', e.target.value)}>
         <option value="baseline">baseline fluctuation</option><option value="pseudo-flare">possible pseudo-flare</option><option value="possible-relapse">possible relapse</option><option value="likely-relapse">likely relapse</option><option value="uncertain">uncertain</option>
       </select></label>
-      <DictationArea label="Notes" value={item.notes} onChange={(v) => set('notes', v)} />
-      <button className="primary">Save symptom</button>
+      <DictationArea className="wide-field" label="Notes" value={item.notes} onChange={(v) => set('notes', v)} />
+      <button className="primary form-submit">Save symptom</button>
     </form>
   );
 }
 
-function DictationArea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DictationArea({ className = '', label, value, onChange }: { className?: string; label: string; value: string; onChange: (v: string) => void }) {
   const [listening, setListening] = useState(false);
   const supported = typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
   const dictate = () => {
@@ -374,7 +667,7 @@ function DictationArea({ label, value, onChange }: { label: string; value: strin
     recognition.start();
   };
   return (
-    <label>
+    <label className={`dictation-area ${className}`.trim()}>
       {label}
       <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={4} />
       {supported && <button type="button" className="secondary inline" onClick={dictate}>{listening ? 'Listening...' : 'Dictate'}</button>}
@@ -416,13 +709,13 @@ function VoiceScreen({ run }: { run: (w: () => Promise<void>, s?: string) => voi
     await api.uploadAttachment(form);
   }, 'Audio memo saved.');
   return (
-    <section className="flow">
-      <DictationArea label="Unstructured note" value={note} onChange={setNote} />
-      <button className="primary" onClick={() => run(async () => {
+    <section className="flow voice-form">
+      <DictationArea className="wide-field" label="Unstructured note" value={note} onChange={setNote} />
+      <button className="primary form-submit" onClick={() => run(async () => {
         await api.saveSymptom({ ...blankSymptom(), category: 'voice note', symptom: note || 'Voice note', notes: note });
         setNote('');
       }, 'Voice note text saved.')}>Save text note</button>
-      <button className={recording ? 'danger' : 'secondary'} onClick={() => recording ? stopAndSave() : run(start)}>
+      <button className={recording ? 'danger form-submit' : 'secondary form-submit'} onClick={() => recording ? stopAndSave() : run(start)}>
         {recording ? 'Stop and save audio' : 'Record audio memo'}
       </button>
       <p className="muted">Browser dictation may depend on your device. Audio memos are stored locally in encrypted Foggy storage.</p>
@@ -437,7 +730,7 @@ function ClinicianScreen({ run }: { run: (w: () => Promise<void>, s?: string) =>
   }, []);
   if (!summary) return <p>Loading summary...</p>;
   return (
-    <section className="flow">
+    <section className="flow summary-view">
       <p className="muted">Generated {new Date(summary.generatedAt).toLocaleString()}</p>
       <SummaryBlock title="Recent check-ins" items={summary.checkins.map((x: DailyCheckIn) => `${x.entryDate}: burden ${x.overallBurden}, fatigue ${x.fatigue}, pain ${x.pain}, fog ${x.brainFog}`)} />
       <SummaryBlock title="Recent symptoms" items={summary.symptoms.map((x: SymptomEvent) => `${new Date(x.occurredAt).toLocaleDateString()}: ${x.category} - ${x.symptom} (${x.severity}/10)`)} />
@@ -459,7 +752,7 @@ function SettingsScreen({ status, settings, setSettings, run, refresh }: { statu
     run(async () => { setSettings(await api.saveSettings(next)); }, 'Settings saved.');
   };
   return (
-    <section className="flow">
+    <section className="flow settings-form">
       <label>Theme<select value={settings.theme} onChange={(e) => save({ ...settings, theme: e.target.value as Settings['theme'] })}>
         <option value="system">System</option><option value="light">Day</option><option value="dark">Night</option>
       </select></label>

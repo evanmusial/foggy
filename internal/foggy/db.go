@@ -107,25 +107,12 @@ func migrate(db *sql.DB) error {
 		);`,
 		`CREATE TABLE IF NOT EXISTS user_settings (
 			id INTEGER PRIMARY KEY CHECK (id = 1),
-			theme TEXT NOT NULL DEFAULT 'system',
-			accent_color TEXT NOT NULL DEFAULT '#f97316',
+			theme TEXT NOT NULL DEFAULT 'light',
+			accent_color TEXT NOT NULL DEFAULT '#2254ab',
 			font_scale TEXT NOT NULL DEFAULT 'comfortable',
 			high_contrast INTEGER NOT NULL DEFAULT 0,
 			reduced_motion INTEGER NOT NULL DEFAULT 0,
 			updated_at TEXT NOT NULL
-		);`,
-		`CREATE TABLE IF NOT EXISTS auth_totp (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
-			secret TEXT NOT NULL,
-			enabled INTEGER NOT NULL DEFAULT 1,
-			created_at TEXT NOT NULL
-		);`,
-		`CREATE TABLE IF NOT EXISTS webauthn_credentials (
-			id TEXT PRIMARY KEY,
-			user_id TEXT NOT NULL,
-			credential_json BLOB NOT NULL,
-			created_at TEXT NOT NULL,
-			last_used_at TEXT
 		);`,
 		`CREATE TABLE IF NOT EXISTS daily_checkins (
 			id TEXT PRIMARY KEY,
@@ -213,7 +200,7 @@ func migrate(db *sql.DB) error {
 		}
 	}
 	_, err := db.Exec(`INSERT OR IGNORE INTO user_settings(id, theme, accent_color, font_scale, high_contrast, reduced_motion, updated_at)
-		VALUES(1, 'system', '#f97316', 'comfortable', 0, 0, ?)`, time.Now().UTC().Format(time.RFC3339))
+		VALUES(1, 'light', '#2254ab', 'comfortable', 0, 0, ?)`, time.Now().UTC().Format(time.RFC3339))
 	return err
 }
 

@@ -71,6 +71,14 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "Could not create recovery codes")
 		return
 	}
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "Foggy",
+		AccountName: req.DisplayName,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Could not create TOTP secret")
+		return
+	}
 	state := securityState{
 		Version:             1,
 		Initialized:         true,
@@ -81,8 +89,10 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 		DisplayName:         req.DisplayName,
 		PasswordSalt:        passwordSalt,
 		PasswordHash:        passwordHash,
+		TOTPSecret:          key.Secret(),
 		DBKeyWrapped:        wrapped,
 		BackupCodes:         backupRecords,
+		Passkeys:            []passkeyCredential{},
 	}
 	a.securityMu.Lock()
 	a.security = state
@@ -103,18 +113,6 @@ func (a *App) setup(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := a.initializeUserSettings(req); err != nil {
 		writeError(w, http.StatusInternalServerError, "Could not save settings")
-		return
-	}
-	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Foggy",
-		AccountName: req.DisplayName,
-	})
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Could not create TOTP secret")
-		return
-	}
-	if err := a.saveTOTPSecret(key.Secret()); err != nil {
-		writeError(w, http.StatusInternalServerError, "Could not save TOTP secret")
 		return
 	}
 	sess, err := a.newSession(w, userID, true)
@@ -140,24 +138,14 @@ func (a *App) initializeUserSettings(req setupRequest) error {
 	}
 	accent := strings.TrimSpace(req.AccentColor)
 	if accent == "" {
-		accent = "#f97316"
+		accent = "#2254ab"
 	}
 	theme := strings.TrimSpace(req.Theme)
 	if theme == "" {
-		theme = "system"
+		theme = "light"
 	}
 	_, err = db.Exec(`INSERT OR REPLACE INTO user_settings(id, theme, accent_color, font_scale, high_contrast, reduced_motion, updated_at)
 		VALUES(1, ?, ?, 'comfortable', 0, 0, ?)`, theme, accent, time.Now().UTC().Format(time.RFC3339))
-	return err
-}
-
-func (a *App) saveTOTPSecret(secret string) error {
-	db, err := a.dbConn()
-	if err != nil {
-		return err
-	}
-	_, err = db.Exec(`INSERT OR REPLACE INTO auth_totp(id, secret, enabled, created_at) VALUES(1, ?, 1, ?)`,
-		secret, time.Now().UTC().Format(time.RFC3339))
 	return err
 }
 
@@ -166,19 +154,10 @@ func (a *App) verifyTOTP(code string) bool {
 	if code == "" {
 		return false
 	}
-	db, err := a.dbConn()
-	if err != nil {
-		return false
-	}
-	var secret string
-	var enabled int
-	if err := db.QueryRow(`SELECT secret, enabled FROM auth_totp WHERE id = 1`).Scan(&secret, &enabled); err != nil {
-		return false
-	}
-	if enabled != 1 {
-		return false
-	}
-	return totp.Validate(code, secret)
+	a.securityMu.RLock()
+	secret := a.security.TOTPSecret
+	a.securityMu.RUnlock()
+	return secret != "" && totp.Validate(code, secret)
 }
 
 func (a *App) loginPassword(w http.ResponseWriter, r *http.Request) {
@@ -194,31 +173,32 @@ func (a *App) loginPassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Invalid login request")
 		return
 	}
-	if !a.isUnlocked() {
-		if err := a.unlockWithPassword(req.Password); err != nil {
-			a.recordAuthFailure(r)
-			writeError(w, http.StatusUnauthorized, "Invalid login")
-			return
-		}
-	} else {
-		a.securityMu.RLock()
-		state := a.security
-		a.securityMu.RUnlock()
-		if state.PasswordAuthEnabled && !verifyPasswordState(state, req.Password) {
-			a.recordAuthFailure(r)
-			writeError(w, http.StatusUnauthorized, "Invalid login")
-			return
-		}
+	a.securityMu.RLock()
+	state := a.security
+	a.securityMu.RUnlock()
+	if !state.PasswordAuthEnabled || !verifyPasswordState(state, req.Password) {
+		a.recordAuthFailure(r)
+		writeError(w, http.StatusUnauthorized, "Invalid login")
+		return
 	}
 	if !a.verifyTOTP(req.TOTPCode) {
 		a.recordAuthFailure(r)
 		writeError(w, http.StatusUnauthorized, "Invalid login")
 		return
 	}
-	a.securityMu.RLock()
-	userID := a.security.UserID
-	a.securityMu.RUnlock()
-	sess, err := a.newSession(w, userID, true)
+	if !a.isUnlocked() {
+		dbKey, err := unwrapWithPassword(state.DBKeyWrapped, req.Password)
+		if err != nil {
+			a.recordAuthFailure(r)
+			writeError(w, http.StatusUnauthorized, "Invalid login")
+			return
+		}
+		if err := a.openEncryptedDB(dbKey); err != nil {
+			writeError(w, http.StatusInternalServerError, "Could not unlock database")
+			return
+		}
+	}
+	sess, err := a.newSession(w, state.UserID, true)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "Could not create session")
 		return

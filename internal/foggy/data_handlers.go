@@ -412,10 +412,10 @@ func (a *App) saveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.Theme == "" {
-		s.Theme = "system"
+		s.Theme = "light"
 	}
 	if s.AccentColor == "" {
-		s.AccentColor = "#f97316"
+		s.AccentColor = "#2254ab"
 	}
 	if s.FontScale == "" {
 		s.FontScale = "comfortable"

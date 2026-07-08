@@ -15,18 +15,20 @@ const (
 )
 
 type securityState struct {
-	Version             int                `json:"version"`
-	Initialized         bool               `json:"initialized"`
-	EncryptionProfile   string             `json:"encryption_profile"`
-	PasswordAuthEnabled bool               `json:"password_auth_enabled"`
-	UserID              string             `json:"user_id"`
-	UserHandle          string             `json:"user_handle"`
-	DisplayName         string             `json:"display_name"`
-	PasswordSalt        string             `json:"password_salt"`
-	PasswordHash        string             `json:"password_hash"`
-	DBKeyWrapped        wrappedKey         `json:"db_key_wrapped"`
-	ServerKeyWrapped    *wrappedKey        `json:"server_key_wrapped,omitempty"`
-	BackupCodes         []backupCodeRecord `json:"backup_codes"`
+	Version             int                 `json:"version"`
+	Initialized         bool                `json:"initialized"`
+	EncryptionProfile   string              `json:"encryption_profile"`
+	PasswordAuthEnabled bool                `json:"password_auth_enabled"`
+	UserID              string              `json:"user_id"`
+	UserHandle          string              `json:"user_handle"`
+	DisplayName         string              `json:"display_name"`
+	PasswordSalt        string              `json:"password_salt"`
+	PasswordHash        string              `json:"password_hash"`
+	TOTPSecret          string              `json:"totp_secret,omitempty"`
+	DBKeyWrapped        wrappedKey          `json:"db_key_wrapped"`
+	ServerKeyWrapped    *wrappedKey         `json:"server_key_wrapped,omitempty"`
+	BackupCodes         []backupCodeRecord  `json:"backup_codes"`
+	Passkeys            []passkeyCredential `json:"passkeys,omitempty"`
 }
 
 type backupCodeRecord struct {
@@ -37,6 +39,14 @@ type backupCodeRecord struct {
 	UsedAt    *string    `json:"used_at,omitempty"`
 	CreatedAt string     `json:"created_at"`
 	LastFour  string     `json:"last_four"`
+}
+
+type passkeyCredential struct {
+	ID             string `json:"id"`
+	UserID         string `json:"user_id"`
+	CredentialJSON string `json:"credential_json"`
+	CreatedAt      string `json:"created_at"`
+	LastUsedAt     string `json:"last_used_at,omitempty"`
 }
 
 type session struct {

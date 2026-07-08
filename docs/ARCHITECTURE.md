@@ -53,6 +53,21 @@ Current contents:
 
 The database and attachments are not meant to be useful by themselves without the required key material. In maximum privacy mode, the password is required after restart to unwrap the database key. In convenience passkey mode, the local `server.key` can unwrap it after restart, trading restart convenience for weaker protection if the entire `data/` directory is stolen.
 
+## Unlock Boundary
+
+Foggy treats encrypted health data as locked until authentication succeeds. The Go process does not open the SQLCipher database handle for normal login until the configured proof has been validated.
+
+The intended order is:
+
+1. Read only non-PHI auth metadata from `security.json`.
+2. Verify the password verifier, recovery code, or passkey assertion.
+3. Verify TOTP when the flow requires it.
+4. Unwrap the database key.
+5. Open `foggy.db` through SQLCipher.
+6. Serve health data APIs only through the authenticated session.
+
+This means TOTP seed material, passkey public credential records, password verifier metadata, and recovery-code key wrappers live in `security.json`, not inside the PHI database. Those values are sensitive auth metadata, but they are not symptom/check-in/attachment content. They must be protected by filesystem permissions and host/device security. Offline protection for a copied database still comes from the password-derived database-key wrap in maximum privacy mode.
+
 ## Backend Responsibilities
 
 The Go backend is the trust boundary. It is responsible for:
@@ -62,6 +77,7 @@ The Go backend is the trust boundary. It is responsible for:
 - TOTP enrollment and verification.
 - Exactly four one-time backup codes.
 - Passkey enrollment and login.
+- Keeping authentication metadata available before database unlock while keeping health records inside SQLCipher.
 - Server-side sessions and CSRF tokens.
 - SQLCipher database opening and migrations.
 - Daily check-in, symptom, medication, attachment, settings, and clinician-summary APIs.

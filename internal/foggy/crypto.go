@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -57,11 +58,7 @@ func newBackupCode() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	raw := strings.ToUpper(base64.RawStdEncoding.EncodeToString(b))
-	raw = strings.NewReplacer("+", "A", "/", "B").Replace(raw)
-	if len(raw) > 16 {
-		raw = raw[:16]
-	}
+	raw := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 	return raw[:4] + "-" + raw[4:8] + "-" + raw[8:12] + "-" + raw[12:16], nil
 }
 
